@@ -32,7 +32,6 @@ class _GradientButtonState extends State<GradientButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -58,21 +57,18 @@ class _GradientButtonState extends State<GradientButton>
 
   void _handleTapDown(TapDownDetails details) {
     if (widget.onPressed != null && !widget.isLoading) {
-      setState(() => _isPressed = true);
       _animationController.forward();
     }
   }
 
   void _handleTapUp(TapUpDetails details) {
     if (widget.onPressed != null && !widget.isLoading) {
-      setState(() => _isPressed = false);
       _animationController.reverse();
     }
   }
 
   void _handleTapCancel() {
     if (widget.onPressed != null && !widget.isLoading) {
-      setState(() => _isPressed = false);
       _animationController.reverse();
     }
   }
@@ -81,6 +77,9 @@ class _GradientButtonState extends State<GradientButton>
   Widget build(BuildContext context) {
     final gradient = widget.gradient ?? AppTheme.getPrimaryGradient(context);
     final isDark = AppTheme.isDarkMode(context);
+    final buttonShadow = widget.outlined
+        ? null
+        : AppTheme.buttonShadow(gradient.colors.last);
     
     return GestureDetector(
       onTapDown: _handleTapDown,
@@ -100,27 +99,19 @@ class _GradientButtonState extends State<GradientButton>
                 borderRadius: BorderRadius.circular(widget.height / 2),
                 border: widget.outlined
                     ? Border.all(
-                        width: 2,
-                        color: AppTheme.getPrimaryColor(context),
+                        width: 1.8,
+                        color: AppTheme.getPrimaryColor(context).withValues(alpha: 0.5),
                       )
                     : null,
-                boxShadow: widget.outlined
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: gradient.colors.first.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                boxShadow: buttonShadow,
               ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: widget.isLoading ? null : widget.onPressed,
                   borderRadius: BorderRadius.circular(widget.height / 2),
-                  splashColor: Colors.white.withValues(alpha: 0.2),
-                  highlightColor: Colors.white.withValues(alpha: 0.1),
+                  splashColor: Colors.white.withValues(alpha: 0.15),
+                  highlightColor: Colors.white.withValues(alpha: 0.08),
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: widget.icon != null ? 24 : 32,

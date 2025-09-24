@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../utils/app_theme.dart';
 
-class FloatingCard extends StatelessWidget {
+class FloatingCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
@@ -15,6 +15,8 @@ class FloatingCard extends StatelessWidget {
   final List<BoxShadow>? customShadow;
   final VoidCallback? onTap;
   final bool animate;
+  final bool glassmorphic;
+  final double? hoverScale;
 
   const FloatingCard({
     super.key,
@@ -30,47 +32,121 @@ class FloatingCard extends StatelessWidget {
     this.customShadow,
     this.onTap,
     this.animate = true,
+    this.glassmorphic = false,
+    this.hoverScale,
   });
+
+  @override
+  State<FloatingCard> createState() => _FloatingCardState();
+}
+
+class _FloatingCardState extends State<FloatingCard> {
+  bool _isPressed = false;
+  bool _isHovered = false;
+  double _targetScale = 1.0;
+
+  double get _hoverScale => widget.hoverScale ?? 1.02;
+
+  void _animateTo(double value) {
+    if (_targetScale == value) return;
+    setState(() => _targetScale = value);
+  }
+
+  void _handleTapDown(TapDownDetails details) {
+    if (widget.onTap != null) {
+      _isPressed = true;
+      _animateTo(0.96);
+    }
+  }
+
+  void _handleTapUp(TapUpDetails details) {
+    if (widget.onTap != null) {
+      _isPressed = false;
+      _animateTo(_isHovered ? _hoverScale : 1.0);
+    }
+  }
+
+  void _handleTapCancel() {
+    if (widget.onTap != null) {
+      _isPressed = false;
+      _animateTo(_isHovered ? _hoverScale : 1.0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDarkMode(context);
-    final defaultBackgroundColor = isDark ? AppTheme.cardDark : Colors.white;
-    final shadows = customShadow ?? AppTheme.getCardShadow(context);
-    
-    Widget card = Container(
-      width: width,
-      height: height,
-      margin: margin,
-      decoration: BoxDecoration(
-        color: gradient == null ? (backgroundColor ?? defaultBackgroundColor) : null,
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: showBorder
-            ? Border.all(
-                color: AppTheme.getPrimaryColor(context).withValues(alpha: 0.1),
-                width: 1,
-              )
-            : null,
-        boxShadow: shadows,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(borderRadius),
-          splashColor: AppTheme.getPrimaryColor(context).withValues(alpha: 0.1),
-          highlightColor: AppTheme.getPrimaryColor(context).withValues(alpha: 0.05),
-          child: Container(
-            padding: padding ?? const EdgeInsets.all(20),
-            child: child,
+    final defaultBackgroundColor = isDark ? AppTheme.surfaceAltDark : AppTheme.surfaceAltLight;
+    final shadows = widget.customShadow ?? AppTheme.getCardShadow(context);
+    final gradient = widget.gradient ?? (widget.glassmorphic ? AppTheme.getGlassGradient(context) : null);
+
+    Widget card = MouseRegion(
+      onEnter: (_) {
+        if (widget.onTap != null) {
+          _isHovered = true;
+          if (!_isPressed) {
+            _animateTo(_hoverScale);
+          }
+        }
+      },
+      onExit: (_) {
+        if (widget.onTap != null) {
+          _isHovered = false;
+          if (!_isPressed) {
+            _animateTo(1.0);
+          }
+        }
+      },
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        onTapCancel: _handleTapCancel,
+        onTap: null,
+        behavior: HitTestBehavior.translucent,
+        child: AnimatedScale(
+          scale: _targetScale,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: AnimatedContainer(
+            width: widget.width,
+            height: widget.height,
+            margin: widget.margin,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: gradient == null ? (widget.backgroundColor ?? defaultBackgroundColor) : null,
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+              border: widget.showBorder
+                ? Border.all(
+                    color: AppTheme.getPrimaryColor(context).withValues(alpha: 0.06),
+                    width: widget.glassmorphic ? 0.6 : 0.8,
+                  )
+                : null,
+              boxShadow: shadows,
+              backgroundBlendMode: widget.glassmorphic ? BlendMode.overlay : null,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+                splashColor: AppTheme.getPrimaryColor(context).withValues(alpha: 0.05),
+                highlightColor: AppTheme.getPrimaryColor(context).withValues(alpha: 0.02),
+                child: AnimatedPadding(
+                  duration: const Duration(milliseconds: 220),
+                  padding: widget.padding ?? const EdgeInsets.all(20),
+                  child: widget.child,
+                ),
+              ),
+            ),
           ),
         ),
       ),
     );
 
-    if (animate) {
+    if (widget.animate) {
       return card
           .animate()
           .fadeIn(duration: 600.ms)
@@ -87,7 +163,6 @@ class FloatingCard extends StatelessWidget {
             curve: Curves.easeOutCubic,
           );
     }
-    
     return card;
   }
 }
@@ -116,7 +191,18 @@ class HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDarkMode(context);
     final defaultGradient = AppTheme.getPrimaryGradient(context);
-    
+    final textTheme = Theme.of(context).textTheme;
+    final titleStyle = textTheme.headlineSmall?.copyWith(
+      color: isDark ? AppTheme.backgroundDark : Colors.white,
+      fontWeight: FontWeight.w700,
+      height: 1.15,
+    );
+    final subtitleStyle = textTheme.bodyMedium?.copyWith(
+      color: (isDark ? AppTheme.backgroundDark : Colors.white).withValues(alpha: 0.95),
+      height: 1.4,
+      fontWeight: FontWeight.w500,
+    );
+
     return FloatingCard(
       height: height,
       gradient: gradient ?? defaultGradient,
@@ -132,12 +218,7 @@ class HeroCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppTheme.backgroundDark : Colors.white,
-                    height: 1.2,
-                  ),
+                  style: titleStyle,
                 ).animate().fadeIn(delay: 200.ms).slideX(
                       begin: -0.2,
                       end: 0,
@@ -146,12 +227,7 @@ class HeroCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: (isDark ? AppTheme.backgroundDark : Colors.white)
-                        .withValues(alpha: 0.9),
-                    height: 1.4,
-                  ),
+                  style: subtitleStyle,
                 ).animate().fadeIn(delay: 300.ms).slideX(
                       begin: -0.2,
                       end: 0,
@@ -201,8 +277,10 @@ class InfoCard extends StatelessWidget {
     
     return FloatingCard(
       onTap: onTap,
+      glassmorphic: !selected,
+      hoverScale: selected ? 1.0 : 1.02,
       backgroundColor: selected
-          ? primaryColor.withValues(alpha: 0.1)
+          ? primaryColor.withValues(alpha: 0.08)
           : null,
       showBorder: selected,
       padding: const EdgeInsets.all(16),
@@ -212,7 +290,7 @@ class InfoCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: (iconColor ?? primaryColor).withValues(alpha: 0.1),
+              color: (iconColor ?? primaryColor).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(

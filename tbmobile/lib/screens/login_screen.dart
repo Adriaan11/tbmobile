@@ -4,7 +4,10 @@ import 'package:email_validator/email_validator.dart';
 import 'package:animate_do/animate_do.dart';
 import '../services/auth_service.dart';
 import '../utils/app_theme.dart';
-import '../widgets/custom_text_field.dart';
+import '../widgets/animated_background.dart';
+import '../widgets/animated_text_field.dart';
+import '../widgets/floating_card.dart';
+import '../widgets/gradient_button.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,16 +21,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _rememberMe = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
+    if (_isSubmitting) return;
+
     // Skip validation for now - just login immediately
     final authService = Provider.of<AuthService>(context, listen: false);
     
@@ -35,18 +43,28 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.isNotEmpty 
         ? _emailController.text.trim() 
         : 'user@tailorblend.com';
-    
-    // Instant login - no validation
-    await authService.quickLogin(email: email);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Welcome to TailorBlend!'),
-          backgroundColor: AppTheme.success,
-          duration: Duration(seconds: 1),
-        ),
-      );
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // Allow the button micro-interaction to be visible
+      await Future.delayed(const Duration(milliseconds: 420));
+
+      await authService.quickLogin(email: email);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Welcome to TailorBlend!'),
+            backgroundColor: AppTheme.success,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -104,46 +122,49 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            CustomTextField(
-              label: 'Email Address',
-              controller: resetEmailController,
-              keyboardType: TextInputType.emailAddress,
-              prefixIcon: Icons.email_outlined,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
-                }
-                if (!EmailValidator.validate(value)) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
+            FloatingCard(
+              glassmorphic: true,
+              borderRadius: 20,
+              padding: const EdgeInsets.all(20),
+              child: AnimatedTextField(
+                label: 'Email Address',
+                hint: 'you@tailorblend.com',
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                prefixIcon: Icons.email_outlined,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!EmailValidator.validate(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (EmailValidator.validate(resetEmailController.text)) {
-                    final authService = Provider.of<AuthService>(context, listen: false);
-                    final result = await authService.resetPassword(
-                      email: resetEmailController.text.trim(),
+            GradientButton(
+              text: 'Send Reset Link',
+              icon: Icons.send_rounded,
+              onPressed: () async {
+                if (EmailValidator.validate(resetEmailController.text)) {
+                  final authService = Provider.of<AuthService>(context, listen: false);
+                  final result = await authService.resetPassword(
+                    email: resetEmailController.text.trim(),
+                  );
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result['message']),
+                        backgroundColor:
+                            result['success'] ? AppTheme.success : AppTheme.error,
+                      ),
                     );
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(result['message']),
-                          backgroundColor: result['success'] 
-                              ? AppTheme.success 
-                              : AppTheme.error,
-                        ),
-                      );
-                    }
                   }
-                },
-                child: const Text('Send Reset Link'),
-              ),
+                }
+              },
             ),
             const SizedBox(height: 16),
           ],
@@ -154,224 +175,240 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.getBackgroundColor(context),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
+    final textTheme = Theme.of(context).textTheme;
+    final primaryColor = AppTheme.getPrimaryColor(context);
+    final textSecondary = AppTheme.getTextSecondaryColor(context);
+
+    return AnimatedBackground(
+      scrollController: _scrollController,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
-                
-                // Logo and Title
+                const SizedBox(height: 36),
                 FadeInDown(
-                  duration: const Duration(milliseconds: 800),
+                  duration: const Duration(milliseconds: 700),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 64,
+                        height: 64,
                         decoration: BoxDecoration(
                           gradient: AppTheme.getPrimaryGradient(context),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: AppTheme.buttonShadow(primaryColor),
                         ),
                         child: const Center(
                           child: Text(
                             'TB',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const Text(
+                      const SizedBox(height: 28),
+                      Text(
                         'Welcome Back',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimaryLight,
-                        ),
+                        style: textTheme.displaySmall,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Your personalized nutrition journey continues',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.textSecondaryLight,
-                        ),
+                        style: textTheme.bodyMedium?.copyWith(color: textSecondary),
                       ),
                     ],
                   ),
                 ),
-                
-                const SizedBox(height: 48),
-                
-                // Login Form
+                const SizedBox(height: 32),
                 FadeInUp(
-                  duration: const Duration(milliseconds: 800),
-                  delay: const Duration(milliseconds: 200),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        CustomTextField(
-                          label: 'Email Address',
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          prefixIcon: Icons.email_outlined,
-                          textInputAction: TextInputAction.next,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            if (!EmailValidator.validate(value)) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        CustomTextField(
-                          label: 'Password',
-                          controller: _passwordController,
-                          isPassword: true,
-                          prefixIcon: Icons.lock_outline,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _handleLogin(),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Remember Me and Forgot Password
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _rememberMe = value ?? false;
-                                      });
-                                    },
-                                    activeColor: AppTheme.getPrimaryColor(context),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(4),
+                  duration: const Duration(milliseconds: 750),
+                  delay: const Duration(milliseconds: 160),
+                  child: FloatingCard(
+                    glassmorphic: true,
+                    borderRadius: 28,
+                    padding: const EdgeInsets.all(28),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AnimatedTextField(
+                            label: 'Email Address',
+                            hint: 'you@tailorblend.com',
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIcon: Icons.email_outlined,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
+                              }
+                              if (!EmailValidator.validate(value)) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          AnimatedTextField(
+                            label: 'Password',
+                            hint: 'Minimum 6 characters',
+                            controller: _passwordController,
+                            isPassword: true,
+                            prefixIcon: Icons.lock_outline,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _handleLogin(),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your password';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                child: Row(
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 220),
+                                      curve: Curves.easeOutCubic,
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        gradient: _rememberMe
+                                            ? AppTheme.getPrimaryGradient(context)
+                                            : null,
+                                        border: Border.all(
+                                          color: primaryColor.withValues(
+                                            alpha: _rememberMe ? 0 : 0.25,
+                                          ),
+                                          width: 1.4,
+                                        ),
+                                        color: _rememberMe
+                                            ? null
+                                            : AppTheme.getBackgroundColor(context).withValues(alpha: 0.6),
+                                      ),
+                                      child: _rememberMe
+                                          ? const Icon(Icons.check, color: Colors.white, size: 16)
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Remember me',
+                                      style: textTheme.bodyMedium?.copyWith(color: textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _handleForgotPassword,
+                                child: const Text('Forgot Password?'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          GradientButton(
+                            text: _isSubmitting ? 'Signing In…' : 'Sign In',
+                            isLoading: _isSubmitting,
+                            onPressed: _isSubmitting ? null : _handleLogin,
+                            icon: Icons.arrow_forward_rounded,
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.transparent,
+                                        primaryColor.withValues(alpha: 0.18),
+                                      ],
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Remember me',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppTheme.textSecondaryLight,
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'or',
+                                  style: textTheme.labelMedium?.copyWith(color: textSecondary),
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        primaryColor.withValues(alpha: 0.18),
+                                        Colors.transparent,
+                                      ],
+                                    ),
                                   ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          FloatingCard(
+                            glassmorphic: true,
+                            showBorder: false,
+                            hoverScale: 1.02,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                            onTap: () {
+                              // TODO: Implement Google Sign In
+                            },
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.g_mobiledata, size: 28, color: primaryColor),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Continue with Google',
+                                  style: textTheme.labelLarge,
                                 ),
                               ],
                             ),
-                            TextButton(
-                              onPressed: _handleForgotPassword,
-                              child: const Text(
-                                'Forgot Password?',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 32),
-                        
-                        // Login Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: _handleLogin,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.getPrimaryColor(context),
-                              elevation: 2,
-                            ),
-                            child: const Text(
-                              'Sign In',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                           ),
-                        ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Divider with OR
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.grey[300])),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                'OR',
-                                style: TextStyle(
-                                  color: AppTheme.textSecondaryLight,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Colors.grey[300])),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Social Login Buttons
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              // TODO: Implement Google Sign In
-                            },
-                            icon: const Icon(Icons.g_mobiledata, size: 24),
-                            label: const Text('Continue with Google'),
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 32),
-                        
-                        // Sign Up Link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'New to TailorBlend? ',
-                              style: TextStyle(
-                                color: AppTheme.textSecondaryLight,
-                                fontSize: 14,
-                              ),
-                            ),
-                            TextButton(
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                FadeInUp(
+                  duration: const Duration(milliseconds: 650),
+                  delay: const Duration(milliseconds: 220),
+                  child: Center(
+                    child: RichText(
+                      text: TextSpan(
+                        style: textTheme.bodyMedium?.copyWith(color: textSecondary),
+                        children: [
+                          const TextSpan(text: 'New to TailorBlend? '),
+                          WidgetSpan(
+                            baseline: TextBaseline.alphabetic,
+                            alignment: PlaceholderAlignment.baseline,
+                            child: TextButton(
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -380,21 +417,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 );
                               },
-                              child: const Text(
-                                'Create Account',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              child: const Text('Create Account'),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
             ),
           ),

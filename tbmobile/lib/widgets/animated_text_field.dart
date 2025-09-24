@@ -53,7 +53,7 @@ class _AnimatedTextFieldState extends State<AnimatedTextField>
   bool _isFocused = false;
   bool _hasError = false;
   late AnimationController _animationController;
-  late Animation<double> _labelAnimation;
+  // late Animation<double> _labelAnimation; // Currently unused
   late Animation<Color?> _borderColorAnimation;
 
   @override
@@ -64,13 +64,13 @@ class _AnimatedTextFieldState extends State<AnimatedTextField>
       vsync: this,
     );
 
-    _labelAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    // _labelAnimation = Tween<double>(
+    //   begin: 0,
+    //   end: 1,
+    // ).animate(CurvedAnimation(
+    //   parent: _animationController,
+    //   curve: Curves.easeOutCubic,
+    // ));
 
     // Initialize color animation properly
     _animationController.addListener(() {
