@@ -554,6 +554,10 @@ class AppTheme {
     return isDarkMode(context) ? backgroundDark : backgroundLight;
   }
   
+  static Color getSurfaceColor(BuildContext context) {
+    return isDarkMode(context) ? surfaceDark : surfaceLight;
+  }
+  
   static Color getTextPrimaryColor(BuildContext context) {
     return isDarkMode(context) ? textPrimaryDark : textPrimaryLight;
   }

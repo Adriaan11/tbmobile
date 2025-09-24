@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 import 'services/auth_service.dart';
 import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/practitioner/practitioner_dashboard.dart';
 import 'utils/app_theme.dart';
 import 'widgets/gradient_button.dart';
 import 'widgets/floating_card.dart';
@@ -283,11 +284,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = [
       (
-        'Create Blend',
-        Icons.science,
+        'Practitioner Mode',
+        Icons.medical_services,
         AppTheme.primaryLight,
         () {
-          // TODO: Navigate to blend creation
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PractitionerDashboard(),
+            ),
+          );
         },
       ),
       (
